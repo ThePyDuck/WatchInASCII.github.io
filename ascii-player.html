@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Video Player</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'Courier New', Courier, monospace;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #screen {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  #ascii-out {
+    white-space: pre;
+    line-height: 1.0;
+    letter-spacing: 0;
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    flex-direction: column;
+    gap: 16px;
+    cursor: pointer;
+    transition: opacity 0.3s;
+    z-index: 10;
+  }
+
+  #overlay.hidden { display: none; }
+
+  #overlay-title {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    color: #0f0;
+    text-shadow: 0 0 20px #0f0;
+  }
+
+  #overlay-sub {
+    font-size: 14px;
+    color: #555;
+    letter-spacing: 0.1em;
+  }
+
+  #upload-btn-big {
+    margin-top: 8px;
+    padding: 14px 36px;
+    background: transparent;
+    border: 1px solid #0f0;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  #upload-btn-big:hover { background: #0f0; color: #000; }
+
+  #controls {
+    height: 48px;
+    background: #0a0a0a;
+    border-top: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    flex-shrink: 0;
+  }
+
+  #controls button {
+    background: transparent;
+    border: 1px solid #333;
+    color: #ccc;
+    font-size: 13px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #controls button:hover { border-color: #0f0; color: #0f0; }
+
+  #file-label {
+    background: transparent;
+    border: 1px solid #333;
+    color: #ccc;
+    font-size: 13px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  #file-label:hover { border-color: #0f0; color: #0f0; }
+  input[type=file] { display: none; }
+
+  #seek {
+    flex: 1;
+    height: 3px;
+    accent-color: #0f0;
+    cursor: pointer;
+  }
+
+  #time-disp {
+    font-size: 12px;
+    color: #555;
+    min-width: 90px;
+    text-align: right;
+    font-family: 'Courier New', monospace;
+  }
+
+  select {
+    background: #0a0a0a;
+    border: 1px solid #333;
+    color: #ccc;
+    font-size: 12px;
+    padding: 4px 8px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+  }
+  select:hover { border-color: #0f0; }
+
+  #fps-label { font-size: 12px; color: #444; white-space: nowrap; }
+
+  #vol {
+    width: 70px;
+    height: 3px;
+    accent-color: #0f0;
+    cursor: pointer;
+  }
+
+  #status {
+    font-size: 11px;
+    color: #333;
+    white-space: nowrap;
+    min-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #fps-range {
+    width: 60px;
+    height: 3px;
+    accent-color: #0f0;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="screen">
+  <pre id="ascii-out"></pre>
+  <div id="overlay">
+    <div id="overlay-title">ASCII VIDEO PLAYER</div>
+    <div id="overlay-sub">renders any video as colored ascii art</div>
+    <label id="upload-btn-big">
+      [ UPLOAD VIDEO ]
+      <input type="file" id="file-in-big" accept="video/*">
+    </label>
+    <div id="overlay-sub" style="margin-top:4px;font-size:12px;">supports mp4, webm, mov</div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="play-btn">▶ PLAY</button>
+  <button id="stop-btn">■ STOP</button>
+  <label id="file-label">⬆ OPEN
+    <input type="file" id="file-in" accept="video/*">
+  </label>
+  <input type="range" id="seek" min="0" max="100" value="0" step="0.05">
+  <span id="time-disp">0:00 / 0:00</span>
+  <select id="color-toggle" title="Color mode">
+    <option value="color">Color</option>
+    <option value="green">Green</option>
+    <option value="white">White</option>
+    <option value="amber">Amber</option>
+    <option value="red">Red</option>
+  </select>
+  <span id="fps-label">FPS <b id="fps-val">24</b></span>
+  <input type="range" id="fps-range" min="5" max="60" value="24">
+  <span id="fps-label">VOL</span>
+  <input type="range" id="vol" min="0" max="1" step="0.02" value="1">
+  <span id="status">no file loaded</span>
+</div>
+
+<canvas id="c" style="display:none"></canvas>
+<video id="v" style="display:none" playsinline></video>
+
+<script>
+const CHARS = " .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+const $ = id => document.getElementById(id);
+const canvas = $('c'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+const video = $('v');
+const pre = $('ascii-out'), screen = $('screen'), overlay = $('overlay');
+const seekBar = $('seek'), timeDisp = $('time-disp'), status = $('status');
+
+let playing = false, rafId = null;
+let colorMode = 'color';
+let targetFPS = 24, lastFrameTime = 0;
+let cols = 1, rows = 1;
+let fontSize = 8;
+
+function calcGrid() {
+  const sw = screen.clientWidth;
+  const sh = screen.clientHeight;
+  // At font-size px, char is ~0.6x wide and 1x tall in Courier New
+  const charW = fontSize * 0.601;
+  const charH = fontSize * 1.0;
+  cols = Math.floor(sw / charW);
+  rows = Math.floor(sh / charH);
+  pre.style.fontSize = fontSize + 'px';
+  pre.style.lineHeight = charH + 'px';
+}
+
+function fmtTime(s) {
+  s = Math.floor(s);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function pixelToChar(b) {
+  return CHARS[Math.floor(b / 255 * (CHARS.length - 1))];
+}
+
+function renderFrame() {
+  if (cols < 1 || rows < 1) return;
+  canvas.width = cols;
+  canvas.height = rows;
+  ctx.drawImage(video, 0, 0, cols, rows);
+  const data = ctx.getImageData(0, 0, cols, rows).data;
+
+  if (colorMode === 'color') {
+    const parts = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = (y * cols + x) * 4;
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const br = r * 0.299 + g * 0.587 + b * 0.114;
+        const ch = pixelToChar(br);
+        parts.push(`\x1b[${r};${g};${b}m${ch}`);
+      }
+      parts.push('\n');
+    }
+    // Use spans for color
+    let html = '';
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = (y * cols + x) * 4;
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const br = r * 0.299 + g * 0.587 + b * 0.114;
+        const ch = pixelToChar(br);
+        html += `<span style="color:rgb(${r},${g},${b})">${ch}</span>`;
+      }
+      html += '\n';
+    }
+    pre.innerHTML = html;
+  } else {
+    const colorMap = { green: '#00ff66', white: '#ffffff', amber: '#ffaa00', red: '#ff3333' };
+    pre.style.color = colorMap[colorMode] || '#fff';
+    let out = '';
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = (y * cols + x) * 4;
+        const br = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+        out += pixelToChar(br);
+      }
+      out += '\n';
+    }
+    pre.textContent = out;
+  }
+}
+
+function animLoop(ts) {
+  if (!playing) return;
+  if (ts - lastFrameTime >= 1000 / targetFPS) {
+    lastFrameTime = ts;
+    if (!video.paused && !video.ended) {
+      renderFrame();
+      const dur = video.duration || 1;
+      seekBar.value = (video.currentTime / dur * 100).toFixed(2);
+      timeDisp.textContent = `${fmtTime(video.currentTime)} / ${fmtTime(dur)}`;
+    }
+  }
+  rafId = requestAnimationFrame(animLoop);
+}
+
+function startPlay() {
+  playing = true;
+  calcGrid();
+  video.play().catch(() => {});
+  $('play-btn').textContent = '⏸ PAUSE';
+  status.textContent = 'playing';
+  rafId = requestAnimationFrame(animLoop);
+}
+
+function pausePlay() {
+  playing = false;
+  video.pause();
+  cancelAnimationFrame(rafId);
+  $('play-btn').textContent = '▶ PLAY';
+  status.textContent = 'paused';
+}
+
+function stopPlay() {
+  playing = false;
+  video.pause();
+  video.currentTime = 0;
+  cancelAnimationFrame(rafId);
+  $('play-btn').textContent = '▶ PLAY';
+  seekBar.value = 0;
+  timeDisp.textContent = '0:00 / 0:00';
+  status.textContent = 'stopped';
+  pre.textContent = '';
+}
+
+function loadFile(f) {
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  video.src = url;
+  video.load();
+  overlay.classList.add('hidden');
+  status.textContent = `${f.name}`;
+  video.onloadedmetadata = () => {
+    calcGrid();
+    timeDisp.textContent = `0:00 / ${fmtTime(video.duration)}`;
+    status.textContent = `${f.name}`;
+  };
+}
+
+$('play-btn').addEventListener('click', () => {
+  if (!video.src) return;
+  playing ? pausePlay() : startPlay();
+});
+
+$('stop-btn').addEventListener('click', stopPlay);
+
+$('file-in').addEventListener('change', e => loadFile(e.target.files[0]));
+$('file-in-big').addEventListener('change', e => loadFile(e.target.files[0]));
+
+seekBar.addEventListener('input', () => {
+  if (!video.duration) return;
+  video.currentTime = seekBar.value / 100 * video.duration;
+});
+
+$('vol').addEventListener('input', function() { video.volume = this.value; });
+
+$('fps-range').addEventListener('input', () => {
+  targetFPS = parseInt($('fps-range').value);
+  $('fps-val').textContent = targetFPS;
+});
+
+$('color-toggle').addEventListener('change', e => {
+  colorMode = e.target.value;
+  if (colorMode !== 'color') pre.style.color = '';
+});
+
+video.addEventListener('ended', () => {
+  playing = false;
+  cancelAnimationFrame(rafId);
+  $('play-btn').textContent = '▶ PLAY';
+  status.textContent = 'finished';
+});
+
+// Auto font size to fill screen
+window.addEventListener('resize', () => { if (playing || video.src) calcGrid(); });
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); playing ? pausePlay() : startPlay(); }
+  if (e.code === 'KeyS') stopPlay();
+  if (e.code === 'ArrowRight' && video.duration) video.currentTime = Math.min(video.duration, video.currentTime + 5);
+  if (e.code === 'ArrowLeft' && video.duration) video.currentTime = Math.max(0, video.currentTime - 5);
+});
+
+// Init
+calcGrid();
+</script>
+</body>
+</html>
